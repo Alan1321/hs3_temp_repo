@@ -22,7 +22,7 @@ import cartopy.crs as ccrs
 import cartopy.feature as cfeature
 from cartopy.mpl.gridliner import LONGITUDE_FORMATTER, LATITUDE_FORMATTER
 import matplotlib.ticker as mticker
-
+import time
 
 #main variables
 base_path = '/home/asubedi/Desktop/hs3_temp_repo'
@@ -51,12 +51,13 @@ def listDir(dir):
         lon_len = 0
         npData = []
         generate_cog(fileNames[i])
-        print(f"{fileNames[i]} -- Completed")
 
 def generate_cog(filename):
 
     try:
-        print(f"Starting file: {filename}......")
+        start_time = time.time()
+        print("---------------------------------------------------------------------------------------------------")
+        print(f"Starting file: {filename}")
         #open file here
         path = f"{FOLDER_PATH}/{filename}"
         file1 = xa.open_dataset(path, engine=engine, decode_coords='all', decode_times=False)
@@ -64,24 +65,7 @@ def generate_cog(filename):
         #lat, lon, data
         latitude = file1.Latitude.data
         longitude = file1.Longitude.data
-        data = file1[var_name].data
-
-        # print(latitude, longitude, data)
-
-        #split data/geolocation here -- if needed
-
-        # split_lat = (np.copy(latitude[0:split_range]))
-        # split_lon = (np.copy(longitude[0:split_range]))
-        # split_data = (np.copy(data[0:split_range]))
-
-        # split_dict = []
-        # for i in range(len(split_data)):
-        #     split_dict.append({
-        #         "latitude":split_lat[i], 
-        #         "longitude":split_lon[i],
-        #         "data":split_data[i]
-        #     })
-        # print("Split_Dict Complete!!", len(split_dict))    
+        data = file1[var_name].data  
 
         full_dict = []
         for i in range(len(data)):
@@ -93,6 +77,10 @@ def generate_cog(filename):
 
         print("Full Dict Length: ", len(full_dict))
 
+        if(len(full_dict) > 25000):
+            print(f"TOO_BIG_ERROR -- FILE: {filename} SIZE:{len(full_dict)}   .................")
+            print("---------------------------------------------------------------------------------------------------")
+            return
 
         #Sort geolocation here
         full_sorted_lat = np.sort(np.copy(latitude), axis=0)
@@ -118,56 +106,10 @@ def generate_cog(filename):
                     break
             #print(lat_index, lon_index)
             return [lat_index, lon_index]
-                    
-        # def find_split_lat_lon(lat, lon):
-        #     lat_index = None
-        #     lon_index = None
-        #     for i in range(len(split_sorted_lat)):
-        #         if(split_sorted_lat[i] == lat):
-        #             lat_index = i
-        #             break
-        #     for i in range(len(split_sorted_lon)):
-        #         if(split_sorted_lon[i] == lon):
-        #             lon_index = i
-        #             break
-        #     return [lat_index, lon_index]
 
         for di in full_dict:
             index = find_full_lat_lon(di["latitude"], di["longitude"])
             full_grid[index[0]][index[1]] = di["data"]
-
-        # for di in split_dict:
-        #     index = find_split_lat_lon(di["latitude"], di["longitude"])
-        #     split_grid[index[0]][index[1]] = di["data"]
-
-        # if(current_setting == 'Split'):
-        #     new_xarray = xa.DataArray(
-        #         data = split_grid,
-        #         dims=("latitude", "longitude"),
-        #         coords={
-        #             "latitude":split_sorted_lat,
-        #             "longitude":split_sorted_lon
-        #         },
-        #         attrs=dict(
-        #             description="",
-        #             units="",
-        #         ),
-        #     )
-        # elif (current_setting == 'Full'):
-        #     new_xarray = xa.DataArray(
-        #         data = full_grid,
-        #         dims=("latitude", "longitude"),
-        #         coords={
-        #             "latitude":full_sorted_lat,
-        #             "longitude":full_sorted_lon
-        #         },
-        #         attrs=dict(
-        #             description="",
-        #             units="",
-        #         ),
-        #     )
-        # else:
-        #     print("Please select proper current_setting")
 
         new_xarray = xa.DataArray(
         data = full_grid,
@@ -187,11 +129,14 @@ def generate_cog(filename):
         new_xarray.rio.crs
         new_xarray.rio.set_crs('epsg:4326', inplace=TRUE)
 
-        cog_path = f'{base_path}/hs3-cogs-2/{filename}.tif'
+        cog_path = f'{base_path}/hs3-cogs-3/{filename}.tif'
         new_xarray.rio.to_raster(rf'{cog_path}', driver='COG')
 
-        print("Complete!!")
-    except:
+        print(f"Complete!! Time Taken: {time.time() - start_time}")
+        print("---------------------------------------------------------------------------------------------------")
+    except KeyboardInterrupt:
+        sys.exit()
+    else:
         print(f"Error {filename}")
 
 FOLDER_PATH = "/home/asubedi/Desktop/hs3-datasets"
